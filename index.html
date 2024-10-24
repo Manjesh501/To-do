@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">To-Do List App</h1>
+        <div class="card">
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="task-input" placeholder="Enter a new task" aria-label="New Task">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" id="add-task">Add Task</button>
+                    </div>
+                </div>
+                <div id="error-message" class="text-danger mb-3"></div>
+                <ul class="list-group" id="task-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchTasks() {
+            const response = await fetch('/api/tasks');
+            const tasks = await response.json();
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+
+            tasks.forEach(task => {
+                const taskElement = document.createElement('li');
+                taskElement.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                taskElement.innerHTML = `
+                    <input type="text" value="${task.title}" id="edit-task-${task._id}" class="form-control" disabled>
+                    <div>
+                        <button class="btn btn-success btn-sm" onclick="editTask('${task._id}')">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTask('${task._id}')">Delete</button>
+                    </div>
+                `;
+                taskList.appendChild(taskElement);
+            });
+        }
+
+        async function addTask() {
+            const input = document.getElementById('task-input');
+            const title = input.value.trim();
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = ''; // Clear previous error message
+
+            if (!title) {
+                errorMessage.innerText = 'Task cannot be empty.';
+                return;
+            }
+
+            await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            });
+            input.value = '';
+            fetchTasks();
+        }
+
+        async function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+                fetchTasks();
+            }
+        }
+
+        // Enable editing mode for a task
+        function editTask(id) {
+            const taskInput = document.getElementById(`edit-task-${id}`);
+            const isDisabled = taskInput.disabled;
+            if (isDisabled) {
+                taskInput.disabled = false;
+                taskInput.focus();
+                document.querySelector(`[onclick="editTask('${id}')"]`).innerText = 'Save';
+            } else {
+                saveTask(id, taskInput.value);
+                taskInput.disabled = true;
+                document.querySelector(`[onclick="editTask('${id}')"]`).innerText = 'Edit';
+            }
+        }
+
+        async function saveTask(id, title) {
+            if (!title.trim()) {
+                alert('Task cannot be empty.');
+                return;
+            }
+
+            await fetch(`/api/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            });
+            fetchTasks();
+        }
+
+        document.getElementById('add-task').addEventListener('click', addTask);
+        fetchTasks();
+    </script>
+</body>
+</html>
